@@ -1,0 +1,41 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+# Run `npm run config:link` to create the app in your Partner Dashboard and fill in client_id.
+
+client_id = ""
+name = "bulk-product-editor"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# read_products: snapshot products, variants and collections · write_products: productUpdate,
+# productVariantsBulkUpdate, collectionAddProductsV2 / collectionRemoveProducts
+scopes = "read_products,write_products"
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+  # Advances a job the moment Shopify finishes a bulk query or bulk mutation,
+  # even if nobody has the job page open.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/bulk_operations"
+  topics = [ "bulk_operations/finish" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+[auth]
+redirect_urls = [ "https://example.com/api/auth" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

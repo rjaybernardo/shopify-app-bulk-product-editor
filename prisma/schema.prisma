@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// Per-shop return policy configuration.
+model ShopSettings {
+  shop                String   @id
+  returnWindowDays    Int      @default(30)
+  autoApprove         Boolean  @default(false)
+  autoRefundOnReceipt Boolean  @default(true)
+  restockOnReceipt    Boolean  @default(true)
+  notifyMerchantEmail String?
+  portalIntro         String   @default("Start a return in a few clicks. You'll need your order number and the email used at checkout.")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// Local mirror of a Shopify Return, enriched with label, refund and timing data for analytics.
+model ReturnRequest {
+  id               String              @id @default(cuid())
+  shop             String
+  shopifyReturnId  String?             @unique
+  returnName       String?
+  orderId          String
+  orderName        String
+  customerEmail    String
+  customerName     String?
+  // REQUESTED | APPROVED | DECLINED | LABEL_SENT | RECEIVED | REFUNDED | CANCELED | CLOSED
+  status           String              @default("REQUESTED")
+  source           String              @default("PORTAL")
+  customerNote     String?
+  declineReason    String?
+  declineNote      String?
+  carrier          String?
+  trackingNumber   String?
+  trackingUrl      String?
+  labelUrl         String?
+  labelToken       String?             @unique
+  labelCost        Float?
+  refundAmount     Float?
+  currencyCode     String?
+  requestedAt      DateTime            @default(now())
+  approvedAt       DateTime?
+  labelSentAt      DateTime?
+  receivedAt       DateTime?
+  refundedAt       DateTime?
+  closedAt         DateTime?
+  updatedAt        DateTime            @updatedAt
+  items            ReturnLineItem[]
+  events           ReturnEvent[]
+
+  @@index([shop, status])
+  @@index([shop, requestedAt])
+}
+
+model ReturnLineItem {
+  id                    String        @id @default(cuid())
+  returnRequestId       String
+  returnRequest         ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  fulfillmentLineItemId String
+  title                 String
+  variantTitle          String?
+  sku                   String?
+  imageUrl              String?
+  quantity              Int
+  unitPrice             Float
+  reasonHandle          String
+  reasonName            String
+  customerNote          String?
+}
+
+// Audit trail rendered as a timeline on the return detail page.
+model ReturnEvent {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  type            String
+  message         String
+  actor           String        @default("system")
+  createdAt       DateTime      @default(now())
+}
+
+// One bulk edit: a selection + a set of operations (or a CSV, or an undo), its preview, and its run.
+model BulkJob {
+  id              String        @id @default(cuid())
+  shop            String
+  name            String
+  // EDITOR | CSV | ROLLBACK
+  source          String
+  // SNAPSHOTTING | READY | APPLYING | COMPLETED | PARTIAL | FAILED | DISCARDED
+  status          String        @default("SNAPSHOTTING")
+  // Within APPLYING: PRODUCTS -> VARIANTS -> COLLECTIONS -> DONE
+  phase           String?
+  // JSON: the selection + operations (EDITOR) or mapped rows (CSV) used to build the plan
+  spec            String
+  // JSON array of import problems (unmatched handles, bad prices...) shown on the preview
+  warnings        String        @default("[]")
+  bulkOperationId String?
+  bulkObjectCount Int           @default(0)
+  bulkTotal       Int           @default(0)
+  lockedUntil     DateTime?
+  productCount    Int           @default(0)
+  variantCount    Int           @default(0)
+  changeCount     Int           @default(0)
+  succeeded       Int           @default(0)
+  failed          Int           @default(0)
+  error           String?
+  rollbackOfId    String?       @unique
+  rollbackOf      BulkJob?      @relation("Rollback", fields: [rollbackOfId], references: [id])
+  rolledBackBy    BulkJob?      @relation("Rollback")
+  createdAt       DateTime      @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  updatedAt       DateTime      @updatedAt
+  items           BulkJobItem[]
+
+  @@index([shop, createdAt])
+  @@index([bulkOperationId])
+}
+
+// One product touched by a job. before/after hold only the fields that change, so undo is exact.
+model BulkJobItem {
+  id               String   @id @default(cuid())
+  jobId            String
+  job              BulkJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  productId        String
+  title            String
+  handle           String
+  imageUrl         String?
+  // JSON ProductState subsets (see app/lib/types.ts)
+  before           String
+  after            String
+  changeCount      Int
+  // Line numbers in the bulk mutation JSONL files, used to map results back
+  productLine      Int?
+  variantLine      Int?
+  // PENDING | SUCCESS | FAILED
+  status           String   @default("PENDING")
+  error            String?
+
+  @@index([jobId])
+}
+
