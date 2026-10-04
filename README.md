@@ -4,6 +4,9 @@ An embedded Shopify app for changing prices, tags, collections, titles, descript
 type and status on hundreds of products at once, from a rule builder or a spreadsheet. Every
 change is previewed before it's written and can be undone in one click.
 
+![Bulk Product Editor installed in a Shopify dev store](screenshots/bulk-product-editor-01.png)
+*The app installed in the `rgb-leather` dev store, showing the starter template's home page.*
+
 ## What it does
 
 Editing products one by one in the Shopify admin is slow and error-prone when a sale, a
@@ -78,6 +81,13 @@ time per shop.
   same step.
 - **Undo**: swaps each item's `before` and `after` and runs it through the same pipeline.
 - **Time saved**: an estimate of 30 seconds per field change if done by hand.
+
+## Screenshots
+
+| Template additional page |
+| --- |
+| ![Template additional page in the Shopify admin](screenshots/bulk-product-editor-02.png) |
+| The starter template's additional page in the app nav. |
 
 ## Tech stack
 
